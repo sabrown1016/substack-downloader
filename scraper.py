@@ -167,8 +167,53 @@ class SubstackScraper:
 
         # 1. Save HTML (if not disabled)
         if not md_only:
+            # Modern, Reader-Mode style CSS
+            css = """
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }
+                img {
+                    max-width: 100%;
+                    height: auto;
+                    display: block;
+                    margin: 20px auto;
+                    border-radius: 8px;
+                }
+                h1 {
+                    font-size: 2.2em;
+                    margin-bottom: 0.5em;
+                    color: #1a1a1a;
+                }
+                a {
+                    color: #0066cc;
+                    text-decoration: none;
+                }
+                a:hover {
+                    text-decoration: underline;
+                }
+                pre {
+                    background: #f4f4f4;
+                    padding: 15px;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                }
+                blockquote {
+                    border-left: 4px solid #ddd;
+                    margin: 0;
+                    padding-left: 15px;
+                    color: #666;
+                }
+            </style>
+            """
+            
             # We save the modified soup with local image links
-            full_html = f"<html><head><title>{title}</title></head><body><h1>{title}</h1>{soup.prettify()}</body></html>"
+            full_html = f"<html><head><title>{title}</title>{css}</head><body><h1>{title}</h1>{soup.prettify()}</body></html>"
             with open(os.path.join(output_dir, f"{filename_base}.html"), 'w') as f:
                 f.write(full_html)
 
