@@ -108,4 +108,4 @@ archive/
 
 ## Disclaimer
 
-This tool is for personal archiving purposes only. Please respect the copyright of the authors and do not undistribute paid content.
+This tool is for personal archiving purposes only. Please respect the copyright of the authors and do not redistribute paid content.
