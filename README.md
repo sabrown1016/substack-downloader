@@ -49,23 +49,23 @@ Substack uses complex "bot protection" for some domains. This tool provides a **
 ### Method A: Standard Substacks (e.g., `name.substack.com`)
 For most newsletters, you only need to log in once.
 
-1.  Run:
+1.  Run in your terminal:
     ```bash
     python login.py
     ```
 2.  A Chrome window will open. Log in to `substack.com`.
-3.  Press **Enter** in your terminal.
+3.  **Go back to the terminal** and press **Enter** to save your session.
 4.  This creates `substack_session.json`, which works for **all** standard Substack newsletters.
 
 ### Method B: Custom Domains (e.g., `robkhenderson.com`, `lennysnewsletter.com`)
 Newsletters with their own domains are isolated "islands" and require their own login.
 
-1.  Run the helper with the URL:
+1.  Run the helper with the URL (all on one line):
     ```bash
     python login.py https://www.lennysnewsletter.com
     ```
-2.  Log in to that specific site in the popup window.
-3.  Press **Enter**.
+2.  A Chrome window will open. Log in to that specific site.
+3.  **Go back to the terminal** and press **Enter** to save your session.
 4.  This saves a domain-specific session (e.g., `substack_session_www.lennysnewsletter.com.json`) which the scraper will automatically detect and use.
 
 ## Usage
