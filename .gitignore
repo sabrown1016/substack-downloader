@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# MacOS
+.DS_Store
+
+# Scraper Data
+archive/
+
+# Secrets / Sessions
+substack_session*.json
+*.har
