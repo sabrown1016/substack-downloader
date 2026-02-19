@@ -123,6 +123,50 @@ class SubstackScraper:
             print(f"Failed to download image {img_url}: {e}")
             return None
 
+    def download_audio(self, audio_url, assets_dir):
+        """Download an audio file and return its local filename."""
+        try:
+            # Parse URL to get filename
+            parsed = urlparse(audio_url)
+            filename = os.path.basename(parsed.path)
+            
+            # Remove query parameters if present
+            if '?' in filename:
+                filename = filename.split('?')[0]
+                
+            if not filename or not filename.lower().endswith(('.mp3', '.m4a', '.wav', '.ogg')):
+                filename = f"audio_{int(time.time())}.mp3"
+
+            local_path = os.path.join(assets_dir, filename)
+            
+            # Don't re-download if exists
+            if os.path.exists(local_path):
+                return filename
+
+            print(f"Downloading audio: {filename}")
+            response = self.session.get(audio_url, stream=True)
+            response.raise_for_status()
+            
+            with open(local_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            return filename
+        except Exception as e:
+            print(f"Failed to download audio {audio_url}: {e}")
+            return None
+
+    def get_transcript(self, slug):
+        """Fetch transcript content."""
+        url = f"{self.base_url}/api/v1/posts/{slug}/transcript"
+        try:
+            response = self.session.get(url)
+            if response.status_code == 200:
+                return response.json()
+        except requests.exceptions.RequestException:
+            pass
+        return None
+
     def save_post(self, post, output_dir, html_only=False, md_only=False):
         """Save post content to file (HTML and/or Markdown) with local images."""
         if not post:
@@ -164,6 +208,19 @@ class SubstackScraper:
                         del img['srcset']
                     
                     image_map[src] = f"assets/{local_filename}"
+
+        # Download Audio
+        audio_url = post.get('audio_url')
+        audio_filename = None
+        if audio_url:
+            audio_filename = self.download_audio(audio_url, assets_dir)
+
+        # Download Transcript
+        transcript_html = None
+        if post.get('type') == 'podcast':
+            transcript_data = self.get_transcript(slug)
+            if transcript_data:
+                transcript_html = transcript_data.get('body_html')
 
         # 1. Save HTML (if not disabled)
         if not md_only:
@@ -209,13 +266,27 @@ class SubstackScraper:
                     padding-left: 15px;
                     color: #666;
                 }
+                audio {
+                    width: 100%;
+                    margin: 20px 0;
+                }
             </style>
             """
             
+            html_body = soup.prettify()
+            if audio_filename:
+                html_body = f'<audio controls src="assets/{audio_filename}"></audio>\n' + html_body
+
             # We save the modified soup with local image links
-            full_html = f"<html><head><title>{title}</title>{css}</head><body><h1>{title}</h1>{soup.prettify()}</body></html>"
+            full_html = f"<html><head><title>{title}</title>{css}</head><body><h1>{title}</h1>{html_body}</body></html>"
             with open(os.path.join(output_dir, f"{filename_base}.html"), 'w', encoding='utf-8') as f:
                 f.write(full_html)
+
+            if transcript_html:
+                transcript_soup = BeautifulSoup(transcript_html, 'html.parser')
+                full_transcript_html = f"<html><head><title>{title} - Transcript</title>{css}</head><body><h1>{title} - Transcript</h1>{transcript_soup.prettify()}</body></html>"
+                with open(os.path.join(output_dir, f"{filename_base}_transcript.html"), 'w', encoding='utf-8') as f:
+                    f.write(full_transcript_html)
 
         # 2. Save Markdown (if not disabled)
         if not html_only:
@@ -226,10 +297,18 @@ class SubstackScraper:
             md_content = markdownify(str(soup), heading_style="ATX")
             
             # Add metadata header
-            full_md = f"# {title}\n\nDate: {date}\nURL: {self.base_url}/p/{slug}\n\n{md_content}"
+            full_md = f"# {title}\n\nDate: {date}\nURL: {self.base_url}/p/{slug}\n\n"
+            if audio_filename:
+                full_md += f"**Audio:** [Listen locally](assets/{audio_filename})\n\n"
+            full_md += md_content
             
             with open(os.path.join(output_dir, f"{filename_base}.md"), 'w', encoding='utf-8') as f:
                 f.write(full_md)
+
+            if transcript_html:
+                transcript_md = markdownify(transcript_html, heading_style="ATX")
+                with open(os.path.join(output_dir, f"{filename_base}_transcript.md"), 'w', encoding='utf-8') as f:
+                    f.write(f"# {title} - Transcript\n\n{transcript_md}")
 
     def get_all_archive_posts(self):
         """Fetch all posts from archive to get total count and metadata."""
