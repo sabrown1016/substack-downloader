@@ -231,6 +231,47 @@ class SubstackScraper:
             with open(os.path.join(output_dir, f"{filename_base}.md"), 'w', encoding='utf-8') as f:
                 f.write(full_md)
 
+    def get_all_archive_posts(self):
+        """Fetch all posts from archive to get total count and metadata."""
+        all_posts = []
+        offset = 0
+        limit = 50
+        
+        print("Fetching all post metadata...")
+        with tqdm(desc="Fetching metadata", unit="posts") as pbar:
+            while True:
+                posts = self.get_archive(limit=limit, offset=offset)
+                if not posts:
+                    break
+                
+                all_posts.extend(posts)
+                count = len(posts)
+                offset += count
+                pbar.update(count)
+                
+                if count < limit:
+                    break
+        return all_posts
+
+    def download_posts(self, posts, output_dir, skip_podcasts=False, html_only=False, md_only=False):
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
+        print(f"Downloading {len(posts)} posts...")
+        for post_summary in tqdm(posts, desc="Downloading content"):
+            slug = post_summary.get('slug')
+            if not slug:
+                continue
+
+            is_podcast = post_summary.get('type') == 'podcast' or post_summary.get('podcast_url') is not None
+            if skip_podcasts and is_podcast:
+                continue
+                
+            time.sleep(1)
+            
+            full_post = self.get_post(slug)
+            if full_post:
+                self.save_post(full_post, output_dir, html_only=html_only, md_only=md_only)
 
     def scrape(self, output_dir="archive", limit=None, skip_podcasts=False, html_only=False, md_only=False):
         """Main scraping loop."""
@@ -332,7 +373,35 @@ def main():
     domain = urlparse(args.url).netloc
     output_dir = os.path.join("archive", domain)
     
-    scraper.scrape(output_dir=output_dir, limit=args.limit, skip_podcasts=args.skip_podcasts, html_only=args.html_only, md_only=args.md_only)
+    # Fetch all metadata first
+    all_posts = scraper.get_all_archive_posts()
+    total_posts = len(all_posts)
+    print(f"\nTotal posts found: {total_posts}")
+    
+    if total_posts == 0:
+        return
+
+    try:
+        print(f"Enter the range of posts to download (1 is the oldest post).")
+        start_val = int(input(f"Start post (1-{total_posts}): "))
+        end_val = int(input(f"End post ({start_val}-{total_posts}): "))
+    except ValueError:
+        print("Invalid input. Please enter numbers.")
+        return
+
+    if start_val < 1: start_val = 1
+    if end_val > total_posts: end_val = total_posts
+    if start_val > end_val:
+        print("Start must be <= End.")
+        return
+
+    # Calculate slice (List is Newest(0) -> Oldest(N-1))
+    slice_start = total_posts - end_val
+    slice_end = total_posts - start_val + 1
+    
+    posts_to_download = all_posts[slice_start:slice_end]
+    
+    scraper.download_posts(posts_to_download, output_dir, skip_podcasts=args.skip_podcasts, html_only=args.html_only, md_only=args.md_only)
 
 if __name__ == "__main__":
     main()
